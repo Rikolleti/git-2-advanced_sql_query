@@ -13,7 +13,7 @@ WHERE release_year BETWEEN 2018 AND 2020;
 
 SELECT name
 FROM artists
-WHERE name NOT LIKE '% %';
+WHERE name NOT LIKE '% %' and name NOT LIKE '%-%';
 
 SELECT *
 FROM songs
