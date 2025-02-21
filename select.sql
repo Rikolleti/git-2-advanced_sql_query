@@ -5,7 +5,7 @@ LIMIT 1;
 
 SELECT track_name, track_duration
 FROM songs
-WHERE track_duration > 210;
+WHERE track_duration >= 210;
 
 SELECT *
 FROM collection
@@ -17,40 +17,48 @@ WHERE name NOT LIKE '% %';
 
 SELECT *
 FROM songs
-WHERE track_name ILIKE '%мой%' OR track_name ILIKE '%my%';
+WHERE 'Мой' = ANY(regexp_split_to_array(track_name, '\s+')) 
+    OR 'My' = ANY(regexp_split_to_array(track_name, '\s+'));
 
 
-SELECT count(artists.name), genre_name FROM artistsgenres
+SELECT count(artists.name), genre_name
+FROM artistsgenres
 JOIN artists on artistsgenres.artist_id = artists.id
 JOIN genres on artistsgenres.genre_id = genres.id
 GROUP BY genres.genre_name;
 
-SELECT count(track_name), release_year from songs
-JOIN albums on songs.album_id = albums.id
-GROUP BY albums.release_year
-HAVING albums.release_year BETWEEN 2019 AND 2020;
+SELECT COUNT(songs.id) 
+FROM songs
+JOIN albums ON songs.album_id = albums.id
+WHERE albums.release_year BETWEEN 2019 AND 2020;
 
-SELECT avg(track_duration), album_name FROM songs
+SELECT avg(track_duration), album_name
+FROM songs
 JOIN albums on songs.album_id = albums.id
 GROUP BY albums.album_name;
 
-SELECT artists.name FROM artists
-LEFT JOIN artistsalbums ON artists.id = artistsalbums.artist_id
-LEFT JOIN albums ON artistsalbums.album_id = albums.id
-AND albums.release_year = 2020
-group by (artists.name);
+SELECT artists.name
+FROM artists
+WHERE artists.name NOT IN (
+    SELECT artists.name
+    FROM artists
+    JOIN artistsalbums ON artists.id = artistsalbums.artist_id
+    JOIN albums ON artistsalbums.album_id = albums.id
+    WHERE albums.release_year = 2020
+);
 
-SELECT collection.name FROM collection
+SELECT collection.name
+FROM collection
 JOIN collectiontracks ON collection.id = collectiontracks.collection_id
 JOIN songs ON songs.id = collectiontracks.track_id
 JOIN albums ON albums.id = songs.album_id
 JOIN artistsalbums ON artistsalbums.album_id = albums.id
 JOIN artists ON artists.id = artistsalbums.artist_id
 group by (collection.name, artists.name)
-having artists.name = 'Баста';
+HAVING artists.name = 'Баста';
 
 
-SELECT distinct albums.album_name
+SELECT DISTINCT albums.album_name
 FROM albums
 JOIN artistsalbums ON artistsalbums.album_id = albums.id
 JOIN artists ON artists.id = artistsalbums.artist_id
@@ -80,9 +88,14 @@ WHERE songs.track_duration = (
 SELECT albums.album_name
 FROM albums
 JOIN (
-    SELECT album_id, COUNT(*) as total_count
+    SELECT album_id, COUNT(*) AS track_count
     FROM songs
     GROUP BY album_id
-) AS min_tracks ON min_tracks.album_id = albums.id
-ORDER BY min_tracks.total_count desc -- Тут сделал название альбома, содержащих наибольшее количество треков.
-LIMIT 1;
+) AS album_tracks ON albums.id = album_tracks.album_id
+WHERE album_tracks.track_count = (
+    SELECT COUNT(*) AS min_track_count
+    FROM songs
+    GROUP BY album_id
+    ORDER BY min_track_count
+    LIMIT 1
+);
